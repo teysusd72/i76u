@@ -1,0 +1,196 @@
+local cloneref = (cloneref or clonereference or function(instance: any) return instance end)
+local httpService = cloneref(game:GetService('HttpService'))
+local httprequest = (syn and syn.request) or request or http_request or (http and http.request)
+local getassetfunc = getcustomasset or getsynasset
+local isfolder, isfile, listfiles = isfolder, isfile, listfiles;
+
+if typeof(copyfunction) == "function" then
+    local
+        isfolder_copy,
+        isfile_copy,
+        listfiles_copy = copyfunction(isfolder), copyfunction(isfile), copyfunction(listfiles);
+
+    local isfolder_success, isfolder_error = pcall(function()
+        return isfolder_copy("test" .. tostring(math.random(1000000, 9999999)))
+    end);
+
+    if isfolder_success == false or typeof(isfolder_error) ~= "boolean" then
+        isfolder = function(folder)
+            local success, data = pcall(isfolder_copy, folder)
+            return (if success then data else false)
+        end;
+
+        isfile = function(file)
+            local success, data = pcall(isfile_copy, file)
+            return (if success then data else false)
+        end;
+
+        listfiles = function(folder)
+            local success, data = pcall(listfiles_copy, folder)
+            return (if success then data else {})
+        end;
+    end
+end
+
+local ThemeManager = {} do
+	ThemeManager.Folder = 'LinoriaLibSettings'
+
+	ThemeManager.Library = nil
+	ThemeManager.DefaultTheme = 'Tokyo Night'
+	ThemeManager.BuiltInThemes = {
+		['Mint'] 			= { 1, httpService:JSONDecode('{"FontColor":"ffffff","MainColor":"242424","AccentColor":"3db488","BackgroundColor":"1c1c1c","OutlineColor":"373737"}') },
+		['Default'] 		= { 2, httpService:JSONDecode('{"FontColor":"ffffff","MainColor":"1c1c1c","AccentColor":"0055ff","BackgroundColor":"141414","OutlineColor":"323232"}') },
+		['BBot'] 			= { 3, httpService:JSONDecode('{"FontColor":"ffffff","MainColor":"1e1e1e","AccentColor":"7e48a3","BackgroundColor":"232323","OutlineColor":"141414"}') },
+		['Fatality']		= { 4, httpService:JSONDecode('{"FontColor":"ffffff","MainColor":"1e1842","AccentColor":"c50754","BackgroundColor":"191335","OutlineColor":"3c355d"}') },
+		['Jester'] 			= {5, httpService:JSONDecode('{"FontColor":"ffffff","MainColor":"242424","AccentColor":"db4467","BackgroundColor":"1c1c1c","OutlineColor":"373737"}') },
+		['Tokyo Night'] 	= { 6, httpService:JSONDecode('{"FontColor":"ffffff","MainColor":"191925","AccentColor":"6759b3","BackgroundColor":"16161f","OutlineColor":"323232"}') },
+		['Ubuntu'] 			= { 7, httpService:JSONDecode('{"FontColor":"ffffff","MainColor":"3e3e3e","AccentColor":"e2581e","BackgroundColor":"323232","OutlineColor":"191919"}') },
+		['Quartz'] 			= { 8, httpService:JSONDecode('{"FontColor":"ffffff","MainColor":"232330","AccentColor":"426e87","BackgroundColor":"1d1b26","OutlineColor":"27232f"}') },
+	}
+
+	ThemeManager.ForceTheme = function(self)
+		if not self.Library then return end
+		
+		self.Library.BackgroundColor = Color3.fromHex("#16161f")
+		self.Library.MainColor = Color3.fromHex("#191925")
+		self.Library.AccentColor = Color3.fromHex("#6759b3")
+		self.Library.OutlineColor = Color3.fromHex("#323232")
+		self.Library.FontColor = Color3.fromHex("#ffffff")
+		
+		self.Library.AccentColorDark = self.Library:GetDarkerColor(self.Library.AccentColor)
+		
+		self.Library:UpdateColorsUsingRegistry()
+		
+		if self.Library.Options then
+			local options = {
+				BackgroundColor = Color3.fromHex("#16161f"),
+				MainColor = Color3.fromHex("#191925"),
+				AccentColor = Color3.fromHex("#6759b3"),
+				OutlineColor = Color3.fromHex("#323232"),
+				FontColor = Color3.fromHex("#ffffff")
+			}
+			
+			for field, color in pairs(options) do
+				if self.Library.Options[field] then
+					self.Library.Options[field]:SetValueRGB(color)
+				end
+			end
+			
+			if self.Library.Options.ThemeManager_ThemeList then
+				self.Library.Options.ThemeManager_ThemeList:SetValue("Tokyo Night")
+			end
+		end
+	end
+
+	function ThemeManager:SetLibrary(library)
+		self.Library = library
+		self:ForceTheme()
+	end
+
+	function ThemeManager:ApplyTheme(theme)
+		local data = self.BuiltInThemes[theme]
+		if not data then return end
+
+		if self.Library.InnerVideoBackground ~= nil then
+			self.Library.InnerVideoBackground.Visible = false
+		end
+		
+		local scheme = data[2]
+		for idx, col in next, scheme do
+			if idx == "VideoLink" then
+				self.Library[idx] = col
+				
+				if self.Library.Options[idx] then
+					self.Library.Options[idx]:SetValue(col)
+				end
+			else
+				self.Library[idx] = Color3.fromHex(col)
+				
+				if self.Library.Options[idx] then
+					self.Library.Options[idx]:SetValueRGB(Color3.fromHex(col))
+				end
+			end
+		end
+
+		self:ThemeUpdate()
+	end
+
+	function ThemeManager:ThemeUpdate()
+		if self.Library.InnerVideoBackground ~= nil then
+			self.Library.InnerVideoBackground.Visible = false
+		end
+
+		local options = { "FontColor", "MainColor", "AccentColor", "BackgroundColor", "OutlineColor", "VideoLink" }
+		for i, field in next, options do
+			if self.Library.Options and self.Library.Options[field] then
+				self.Library[field] = self.Library.Options[field].Value
+			end
+		end
+
+		self.Library.AccentColorDark = self.Library:GetDarkerColor(self.Library.AccentColor);
+		self.Library:UpdateColorsUsingRegistry()
+	end
+
+	function ThemeManager:LoadDefault()
+		local theme = "Tokyo Night"
+		if self.Library.Options.ThemeManager_ThemeList then
+			self.Library.Options.ThemeManager_ThemeList:SetValue(theme)
+		end
+		self:ApplyTheme(theme)
+	end
+
+	function ThemeManager:CreateThemeManager(groupbox)
+		groupbox:AddLabel('Background color'):AddColorPicker('BackgroundColor', { Default = Color3.fromHex("#16161f") });
+		groupbox:AddLabel('Main color'):AddColorPicker('MainColor', { Default = Color3.fromHex("#191925") });
+		groupbox:AddLabel('Accent color'):AddColorPicker('AccentColor', { Default = Color3.fromHex("#6759b3") });
+		groupbox:AddLabel('Outline color'):AddColorPicker('OutlineColor', { Default = Color3.fromHex("#323232") });
+		groupbox:AddLabel('Font color'):AddColorPicker('FontColor', { Default = Color3.fromHex("#ffffff") });
+
+		local ThemesArray = {}
+		for Name, Theme in next, self.BuiltInThemes do
+			table.insert(ThemesArray, Name)
+		end
+
+		table.sort(ThemesArray, function(a, b) return self.BuiltInThemes[a][1] < self.BuiltInThemes[b][1] end)
+
+		groupbox:AddDivider()
+
+		groupbox:AddDropdown('ThemeManager_ThemeList', { Text = 'Theme list', Values = ThemesArray, Default = 6 })
+		groupbox:AddButton('Set as default', function()
+			self.Library:Notify(string.format('Set default theme to %q', self.Library.Options.ThemeManager_ThemeList.Value))
+		end)
+
+		self.Library.Options.ThemeManager_ThemeList:OnChanged(function()
+			self:ApplyTheme(self.Library.Options.ThemeManager_ThemeList.Value)
+		end)
+
+		self:ForceTheme()
+		self:LoadDefault()
+
+		local function UpdateTheme() self:ThemeUpdate() end
+		self.Library.Options.BackgroundColor:OnChanged(UpdateTheme)
+		self.Library.Options.MainColor:OnChanged(UpdateTheme)
+		self.Library.Options.AccentColor:OnChanged(UpdateTheme)
+		self.Library.Options.OutlineColor:OnChanged(UpdateTheme)
+		self.Library.Options.FontColor:OnChanged(UpdateTheme)
+	end
+
+	function ThemeManager:CreateGroupBox(tab)
+		assert(self.Library, 'Must set ThemeManager.Library first!')
+		return tab:AddLeftGroupbox('Themes')
+	end
+
+	function ThemeManager:ApplyToTab(tab)
+		assert(self.Library, 'Must set ThemeManager.Library first!')
+		local groupbox = self:CreateGroupBox(tab)
+		self:CreateThemeManager(groupbox)
+	end
+
+	function ThemeManager:ApplyToGroupbox(groupbox)
+		assert(self.Library, 'Must set ThemeManager.Library first!')
+		self:CreateThemeManager(groupbox)
+	end
+end
+
+getgenv().LinoriaThemeManager = ThemeManager
+return ThemeManager
